@@ -3,7 +3,7 @@ import Icon from "@/components/ui/icon";
 
 const AUTH_URL = "https://functions.poehali.dev/b91014b0-a2ba-41fc-a4c3-2b345cbe04c4";
 
-type Section = "home" | "news" | "study" | "educator" | "methodical" | "events" | "schedule" | "cabinet";
+type Section = "home" | "cabinet";
 
 interface Teacher {
   name: string;
@@ -14,12 +14,6 @@ interface Teacher {
 
 const NAV_ITEMS = [
   { id: "home", label: "Главная", icon: "Home" },
-  { id: "news", label: "Новости", icon: "Newspaper" },
-  { id: "study", label: "Учебная деятельность", icon: "BookOpen" },
-  { id: "educator", label: "Воспитательная деятельность", icon: "Heart" },
-  { id: "methodical", label: "Методическая деятельность", icon: "FileText" },
-  { id: "events", label: "Мероприятия", icon: "Calendar" },
-  { id: "schedule", label: "Расписание", icon: "Clock" },
   { id: "cabinet", label: "Личный кабинет", icon: "User" },
 ] as const;
 
@@ -145,13 +139,7 @@ export default function Index() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {active === "home" && <HomePage onNavigate={setActive} onLogin={() => setShowLogin(true)} teacher={teacher} />}
-        {active === "news" && <EmptySection icon="Newspaper" title="Новости" />}
-        {active === "study" && <EmptySection icon="BookOpen" title="Учебная деятельность" />}
-        {active === "educator" && <EmptySection icon="Heart" title="Воспитательная деятельность" />}
-        {active === "methodical" && <EmptySection icon="FileText" title="Методическая деятельность" />}
-        {active === "events" && <EmptySection icon="Calendar" title="Мероприятия" />}
-        {active === "schedule" && <EmptySection icon="Clock" title="Расписание занятий" />}
+        {active === "home" && <HomePage onLogin={() => setShowLogin(true)} teacher={teacher} />}
         {active === "cabinet" && <CabinetPage teacher={teacher} onLogin={() => setShowLogin(true)} onLogout={handleLogout} />}
       </main>
 
@@ -170,7 +158,7 @@ export default function Index() {
           <div>
             <p className="font-semibold mb-3 text-white/80">Разделы</p>
             <div className="flex flex-col gap-2">
-              {NAV_ITEMS.slice(0, 4).map(i => (
+              {NAV_ITEMS.map(i => (
                 <button key={i.id} onClick={() => setActive(i.id as Section)} className="text-white/60 hover:text-white text-sm text-left transition-colors">{i.label}</button>
               ))}
             </div>
@@ -289,20 +277,10 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (t
 }
 
 /* ===== HOME PAGE ===== */
-function HomePage({ onNavigate, onLogin, teacher }: { onNavigate: (s: Section) => void; onLogin: () => void; teacher: Teacher | null }) {
-  const quickCards = [
-    { id: "news", icon: "Newspaper", label: "Новости", desc: "Актуальные события", color: "gradient-card-orange" },
-    { id: "study", icon: "BookOpen", label: "Учебная деятельность", desc: "Курсы и уроки", color: "gradient-card-blue" },
-    { id: "educator", icon: "Heart", label: "Воспитательная деятельность", desc: "Развитие и наставничество", color: "gradient-card-purple" },
-    { id: "methodical", icon: "FileText", label: "Методическая деятельность", desc: "Материалы и разработки", color: "gradient-card-green" },
-    { id: "events", icon: "Calendar", label: "Мероприятия", desc: "События и олимпиады", color: "gradient-card-pink" },
-    { id: "schedule", icon: "Clock", label: "Расписание занятий", desc: "Календарь учебных событий", color: "gradient-card-orange" },
-  ];
-
+function HomePage({ onLogin, teacher }: { onLogin: () => void; teacher: Teacher | null }) {
   return (
     <div className="animate-fade-in">
-      {/* Hero */}
-      <div className="relative rounded-3xl overflow-hidden mb-10 min-h-[340px] flex items-end">
+      <div className="relative rounded-3xl overflow-hidden min-h-[420px] flex items-end">
         <img src={HERO_IMAGE} alt="hero" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29]/50 to-transparent" />
         <div className="relative z-10 p-8 md:p-12 max-w-2xl">
@@ -328,48 +306,6 @@ function HomePage({ onNavigate, onLogin, teacher }: { onNavigate: (s: Section) =
             </div>
           )}
         </div>
-      </div>
-
-      {/* Quick Nav Cards */}
-      <h3 className="font-display font-bold text-2xl text-foreground mb-5">Разделы платформы</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {quickCards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => onNavigate(card.id as Section)}
-            className={`${card.color} text-white rounded-2xl p-6 text-left hover-lift group`}
-          >
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-4 group-hover:bg-white/30 transition-all">
-              <Icon name={card.icon} size={24} className="text-white" />
-            </div>
-            <h4 className="font-display font-bold text-lg leading-tight mb-1">{card.label}</h4>
-            <p className="text-white/75 text-sm">{card.desc}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ===== EMPTY SECTION ===== */
-function EmptySection({ icon, title }: { icon: string; title: string }) {
-  return (
-    <div className="animate-fade-in">
-      <div className="mb-7 flex items-start gap-4">
-        <div className="w-12 h-12 rounded-2xl gradient-card-orange flex items-center justify-center flex-shrink-0">
-          <Icon name={icon} size={24} className="text-white" />
-        </div>
-        <div>
-          <h2 className="font-display font-bold text-2xl text-foreground">{title}</h2>
-          <p className="text-muted-foreground text-sm mt-0.5">Раздел в разработке</p>
-        </div>
-      </div>
-      <div className="bg-white rounded-3xl p-16 text-center shadow-sm border-2 border-dashed border-border">
-        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-          <Icon name={icon} size={28} className="text-muted-foreground" />
-        </div>
-        <h3 className="font-display font-bold text-lg text-foreground mb-2">Раздел пока пуст</h3>
-        <p className="text-muted-foreground text-sm max-w-xs mx-auto">Этот раздел будет заполнен позже. Материалы появятся здесь после добавления.</p>
       </div>
     </div>
   );
