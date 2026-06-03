@@ -32,7 +32,7 @@ export default function Index() {
               <Icon name="GraduationCap" size={22} className="text-white" />
             </div>
             <div>
-              <h1 className="font-display font-black text-lg leading-tight">ЭдуПлатформа</h1>
+              <h1 className="font-display font-black text-lg leading-tight">Электронная учительская</h1>
               <p className="text-xs text-white/60">Система онлайн-обучения</p>
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function Index() {
               <div className="w-9 h-9 rounded-xl bg-edu-orange flex items-center justify-center">
                 <Icon name="GraduationCap" size={18} className="text-white" />
               </div>
-              <span className="font-display font-bold text-lg">ЭдуПлатформа</span>
+              <span className="font-display font-bold text-lg">Электронная учительская</span>
             </div>
             <p className="text-white/60 text-sm">Современная образовательная платформа для студентов и преподавателей</p>
           </div>
