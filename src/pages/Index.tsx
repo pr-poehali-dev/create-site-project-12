@@ -1,8 +1,16 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
+const AUTH_URL = "https://functions.poehali.dev/b91014b0-a2ba-41fc-a4c3-2b345cbe04c4";
 
 type Section = "home" | "news" | "study" | "educator" | "methodical" | "events" | "schedule" | "cabinet";
+
+interface Teacher {
+  name: string;
+  subject: string;
+  login: string;
+  token: string;
+}
 
 const NAV_ITEMS = [
   { id: "home", label: "Главная", icon: "Home" },
@@ -16,15 +24,36 @@ const NAV_ITEMS = [
 ] as const;
 
 const HERO_IMAGE = "https://cdn.poehali.dev/projects/f50c38c5-ff43-4ce5-add8-b1154e599888/files/0ffcf3b4-a294-4716-b429-2fb92212c4df.jpg";
-const SCHEDULE_IMAGE = "https://cdn.poehali.dev/projects/f50c38c5-ff43-4ce5-add8-b1154e599888/files/efefb61f-3255-484d-b11d-ff3cb3340bf5.jpg";
 
 export default function Index() {
   const [active, setActive] = useState<Section>("home");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+
+  const handleLogout = () => {
+    if (teacher) {
+      fetch(AUTH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Id": teacher.token },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    }
+    setTeacher(null);
+    setActive("home");
+  };
 
   return (
     <div className="min-h-screen bg-[#f6f7fb] font-body">
-      {/* Top Header */}
+      {/* Login Modal */}
+      {showLogin && (
+        <LoginModal
+          onClose={() => setShowLogin(false)}
+          onSuccess={(t) => { setTeacher(t); setShowLogin(false); setActive("cabinet"); }}
+        />
+      )}
+
+      {/* Header */}
       <header className="mesh-bg text-white">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -37,13 +66,29 @@ export default function Index() {
             </div>
           </div>
           <div className="hidden md:flex items-center gap-3">
-            <button
-              onClick={() => setActive("cabinet")}
-              className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-sm font-semibold hover:bg-white/15 transition-all"
-            >
-              <Icon name="User" size={16} />
-              Войти
-            </button>
+            {teacher ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-sm">
+                  <Icon name="User" size={15} />
+                  <span className="font-semibold">{teacher.name}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-sm font-semibold hover:bg-white/15 transition-all"
+                >
+                  <Icon name="LogOut" size={15} />
+                  Выйти
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowLogin(true)}
+                className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-sm font-semibold hover:bg-white/15 transition-all"
+              >
+                <Icon name="LogIn" size={16} />
+                Войти
+              </button>
+            )}
           </div>
           <button
             className="md:hidden glass p-2 rounded-xl"
@@ -71,7 +116,6 @@ export default function Index() {
               </button>
             ))}
           </div>
-          {/* Mobile menu */}
           {mobileMenuOpen && (
             <div className="md:hidden py-2 flex flex-col gap-1">
               {NAV_ITEMS.map((item) => (
@@ -86,6 +130,14 @@ export default function Index() {
                   {item.label}
                 </button>
               ))}
+              {!teacher && (
+                <button
+                  onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 text-left"
+                >
+                  <Icon name="LogIn" size={16} />Войти
+                </button>
+              )}
             </div>
           )}
         </nav>
@@ -93,14 +145,14 @@ export default function Index() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {active === "home" && <HomePage onNavigate={setActive} />}
-        {active === "news" && <NewsPage />}
-        {active === "study" && <StudyPage />}
-        {active === "educator" && <EducatorPage />}
-        {active === "methodical" && <MethodicalPage />}
-        {active === "events" && <EventsPage />}
-        {active === "schedule" && <SchedulePage />}
-        {active === "cabinet" && <CabinetPage />}
+        {active === "home" && <HomePage onNavigate={setActive} onLogin={() => setShowLogin(true)} teacher={teacher} />}
+        {active === "news" && <EmptySection icon="Newspaper" title="Новости" />}
+        {active === "study" && <EmptySection icon="BookOpen" title="Учебная деятельность" />}
+        {active === "educator" && <EmptySection icon="Heart" title="Воспитательная деятельность" />}
+        {active === "methodical" && <EmptySection icon="FileText" title="Методическая деятельность" />}
+        {active === "events" && <EmptySection icon="Calendar" title="Мероприятия" />}
+        {active === "schedule" && <EmptySection icon="Clock" title="Расписание занятий" />}
+        {active === "cabinet" && <CabinetPage teacher={teacher} onLogin={() => setShowLogin(true)} onLogout={handleLogout} />}
       </main>
 
       {/* Footer */}
@@ -113,7 +165,7 @@ export default function Index() {
               </div>
               <span className="font-display font-bold text-lg">Электронная учительская</span>
             </div>
-            <p className="text-white/60 text-sm">Современная образовательная платформа для студентов и преподавателей</p>
+            <p className="text-white/60 text-sm">Современная образовательная платформа для учителей</p>
           </div>
           <div>
             <p className="font-semibold mb-3 text-white/80">Разделы</p>
@@ -133,29 +185,118 @@ export default function Index() {
           </div>
         </div>
         <div className="border-t border-white/10 max-w-7xl mx-auto px-4 py-4 text-center text-white/40 text-xs">
-          © 2026 ЭдуПлатформа. Все права защищены.
+          © 2026 Электронная учительская. Все права защищены.
         </div>
       </footer>
     </div>
   );
 }
 
-/* ===== HOME PAGE ===== */
-function HomePage({ onNavigate }: { onNavigate: (s: Section) => void }) {
-  const stats = [
-    { value: "1 200+", label: "Студентов" },
-    { value: "48", label: "Курсов" },
-    { value: "120", label: "Уроков" },
-    { value: "98%", label: "Довольных" },
-  ];
+/* ===== LOGIN MODAL ===== */
+function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (t: Teacher) => void }) {
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(AUTH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", login, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Ошибка входа");
+      } else {
+        onSuccess({ ...data, login });
+      }
+    } catch {
+      setError("Ошибка соединения. Попробуйте ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-scale-in">
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-xl hover:bg-muted transition-colors">
+          <Icon name="X" size={18} className="text-muted-foreground" />
+        </button>
+
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-14 h-14 rounded-2xl gradient-card-orange flex items-center justify-center mb-3">
+            <Icon name="GraduationCap" size={28} className="text-white" />
+          </div>
+          <h2 className="font-display font-black text-xl text-foreground">Вход для учителей</h2>
+          <p className="text-muted-foreground text-sm mt-1">Введите данные вашего аккаунта</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Логин</label>
+            <div className="relative">
+              <Icon name="User" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={login}
+                onChange={e => setLogin(e.target.value)}
+                placeholder="Ваш логин"
+                className="w-full pl-9 pr-4 py-3 rounded-xl border border-border bg-muted/50 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-edu-orange focus:border-transparent transition-all"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Пароль</label>
+            <div className="relative">
+              <Icon name="Lock" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Ваш пароль"
+                className="w-full pl-9 pr-4 py-3 rounded-xl border border-border bg-muted/50 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-edu-orange focus:border-transparent transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">
+              <Icon name="AlertCircle" size={15} />
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 bg-edu-orange text-white rounded-xl font-bold hover:bg-orange-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? <><Icon name="Loader" size={16} className="animate-spin" />Вход...</> : "Войти"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ===== HOME PAGE ===== */
+function HomePage({ onNavigate, onLogin, teacher }: { onNavigate: (s: Section) => void; onLogin: () => void; teacher: Teacher | null }) {
   const quickCards = [
-    { id: "study", icon: "BookOpen", label: "Учебная деятельность", desc: "Курсы, уроки, задания", color: "gradient-card-orange" },
-    { id: "educator", icon: "Heart", label: "Воспитательная деятельность", desc: "Развитие и наставничество", color: "gradient-card-blue" },
-    { id: "methodical", icon: "FileText", label: "Методическая деятельность", desc: "Материалы и разработки", color: "gradient-card-purple" },
-    { id: "events", icon: "Calendar", label: "Мероприятия", desc: "События и олимпиады", color: "gradient-card-green" },
-    { id: "schedule", icon: "Clock", label: "Расписание занятий", desc: "Календарь учебных событий", color: "gradient-card-pink" },
     { id: "news", icon: "Newspaper", label: "Новости", desc: "Актуальные события", color: "gradient-card-orange" },
+    { id: "study", icon: "BookOpen", label: "Учебная деятельность", desc: "Курсы и уроки", color: "gradient-card-blue" },
+    { id: "educator", icon: "Heart", label: "Воспитательная деятельность", desc: "Развитие и наставничество", color: "gradient-card-purple" },
+    { id: "methodical", icon: "FileText", label: "Методическая деятельность", desc: "Материалы и разработки", color: "gradient-card-green" },
+    { id: "events", icon: "Calendar", label: "Мероприятия", desc: "События и олимпиады", color: "gradient-card-pink" },
+    { id: "schedule", icon: "Clock", label: "Расписание занятий", desc: "Календарь учебных событий", color: "gradient-card-orange" },
   ];
 
   return (
@@ -167,36 +308,26 @@ function HomePage({ onNavigate }: { onNavigate: (s: Section) => void }) {
         <div className="relative z-10 p-8 md:p-12 max-w-2xl">
           <span className="inline-block px-3 py-1 rounded-full bg-edu-orange text-white text-xs font-bold uppercase tracking-wider mb-4">Добро пожаловать</span>
           <h2 className="font-display font-black text-3xl md:text-5xl text-white leading-tight mb-4">
-            Образование нового поколения
+            Электронная учительская
           </h2>
           <p className="text-white/80 text-lg mb-6">
-            Современная платформа для обучения, развития и достижения новых вершин
+            Современная платформа для учителей — всё необходимое в одном месте
           </p>
-          <div className="flex gap-3 flex-wrap">
+          {!teacher && (
             <button
-              onClick={() => onNavigate("study")}
+              onClick={onLogin}
               className="px-6 py-3 bg-edu-orange text-white rounded-xl font-bold hover:bg-orange-500 transition-all hover-lift"
             >
-              Начать обучение
+              Войти в систему
             </button>
-            <button
-              onClick={() => onNavigate("schedule")}
-              className="px-6 py-3 glass text-white rounded-xl font-bold hover:bg-white/20 transition-all"
-            >
-              Расписание
-            </button>
-          </div>
+          )}
+          {teacher && (
+            <div className="glass px-5 py-3 rounded-xl inline-flex items-center gap-2">
+              <Icon name="CheckCircle" size={18} className="text-edu-green" />
+              <span className="text-white font-semibold">Добро пожаловать, {teacher.name}!</span>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-6 text-center shadow-sm hover-lift">
-            <div className="stat-number text-4xl mb-1">{s.value}</div>
-            <div className="text-muted-foreground text-sm font-medium">{s.label}</div>
-          </div>
-        ))}
       </div>
 
       {/* Quick Nav Cards */}
@@ -220,314 +351,78 @@ function HomePage({ onNavigate }: { onNavigate: (s: Section) => void }) {
   );
 }
 
-/* ===== NEWS PAGE ===== */
-function NewsPage() {
-  const news = [
-    { date: "02 июня 2026", tag: "Важное", title: "Начало нового учебного модуля", desc: "Со 2 июня стартует третий модуль по математике и информатике. Студентам необходимо подтвердить участие до 5 июня.", color: "bg-edu-orange" },
-    { date: "28 мая 2026", tag: "Событие", title: "Межшкольная олимпиада по физике", desc: "Поздравляем участников олимпиады! Результаты опубликованы в личных кабинетах.", color: "bg-edu-blue" },
-    { date: "20 мая 2026", tag: "Обновление", title: "Новые курсы по программированию", desc: "На платформе появились 8 новых курсов по Python, JavaScript и основам алгоритмов.", color: "bg-edu-purple" },
-    { date: "15 мая 2026", tag: "Мероприятие", title: "День открытых дверей — онлайн", desc: "Приглашаем родителей и студентов на онлайн-день открытых дверей 20 мая в 15:00.", color: "bg-edu-green" },
-  ];
-
+/* ===== EMPTY SECTION ===== */
+function EmptySection({ icon, title }: { icon: string; title: string }) {
   return (
     <div className="animate-fade-in">
-      <PageHeader icon="Newspaper" title="Новости" subtitle="Актуальные события и объявления платформы" />
-      <div className="grid gap-5">
-        {news.map((n, i) => (
-          <div key={i} className="bg-white rounded-2xl p-6 shadow-sm hover-lift flex gap-5">
-            <div className={`w-1.5 rounded-full ${n.color} flex-shrink-0`} />
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <span className={`inline-block px-2.5 py-0.5 rounded-full text-white text-[10px] font-bold uppercase tracking-wider ${n.color}`}>{n.tag}</span>
-                <span className="text-muted-foreground text-sm">{n.date}</span>
-              </div>
-              <h3 className="font-display font-bold text-lg text-foreground mb-2">{n.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{n.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ===== STUDY PAGE ===== */
-function StudyPage() {
-  const courses = [
-    { name: "Математика. Модуль 3", teacher: "Иванова Н.А.", progress: 65, lessons: 12, color: "bg-edu-orange" },
-    { name: "Информатика и ИКТ", teacher: "Петров С.В.", progress: 40, lessons: 8, color: "bg-edu-blue" },
-    { name: "Физика. Механика", teacher: "Сидорова Е.М.", progress: 80, lessons: 15, color: "bg-edu-purple" },
-    { name: "История России", teacher: "Козлов А.Д.", progress: 20, lessons: 10, color: "bg-edu-green" },
-    { name: "Английский язык", teacher: "Смирнова И.П.", progress: 55, lessons: 20, color: "bg-edu-pink" },
-  ];
-
-  return (
-    <div className="animate-fade-in">
-      <PageHeader icon="BookOpen" title="Учебная деятельность" subtitle="Курсы, уроки и учебные материалы" />
-      <div className="grid gap-4">
-        {courses.map((c, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 shadow-sm hover-lift">
-            <div className="flex items-start gap-4">
-              <div className={`w-12 h-12 rounded-xl ${c.color} flex items-center justify-center flex-shrink-0`}>
-                <Icon name="BookOpen" size={22} className="text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div>
-                    <h3 className="font-display font-bold text-base text-foreground">{c.name}</h3>
-                    <p className="text-muted-foreground text-sm">{c.teacher} · {c.lessons} уроков</p>
-                  </div>
-                  <span className="text-sm font-bold text-foreground">{c.progress}%</span>
-                </div>
-                <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${c.color} transition-all`}
-                    style={{ width: `${c.progress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Прогресс курса</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ===== EDUCATOR PAGE ===== */
-function EducatorPage() {
-  const activities = [
-    { icon: "Users", title: "Классный час «Мы — команда»", date: "10 июня 2026", type: "Групповое", color: "gradient-card-blue" },
-    { icon: "Heart", title: "Волонтёрский проект «Помощь рядом»", date: "15 июня 2026", type: "Социальное", color: "gradient-card-green" },
-    { icon: "Star", title: "Конкурс «Лучший студент месяца»", date: "20 июня 2026", type: "Конкурс", color: "gradient-card-orange" },
-    { icon: "Smile", title: "Психологический тренинг «Уверенность»", date: "25 июня 2026", type: "Тренинг", color: "gradient-card-purple" },
-  ];
-
-  return (
-    <div className="animate-fade-in">
-      <PageHeader icon="Heart" title="Воспитательная деятельность" subtitle="Мероприятия для развития личности студентов" />
-      <div className="grid sm:grid-cols-2 gap-5">
-        {activities.map((a, i) => (
-          <div key={i} className={`${a.color} text-white rounded-2xl p-6 hover-lift`}>
-            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center mb-4">
-              <Icon name={a.icon} size={22} className="text-white" />
-            </div>
-            <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider mb-3">{a.type}</span>
-            <h3 className="font-display font-bold text-lg leading-tight mb-2">{a.title}</h3>
-            <p className="text-white/75 text-sm flex items-center gap-1">
-              <Icon name="CalendarDays" size={13} />
-              {a.date}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ===== METHODICAL PAGE ===== */
-function MethodicalPage() {
-  const docs = [
-    { icon: "FileText", name: "Рабочая программа по математике", size: "1.2 МБ", type: "PDF", color: "text-edu-orange" },
-    { icon: "FileText", name: "Методическое пособие по физике", size: "3.5 МБ", type: "PDF", color: "text-edu-blue" },
-    { icon: "Presentation", name: "Презентация «Основы алгоритмов»", size: "8.7 МБ", type: "PPT", color: "text-edu-purple" },
-    { icon: "FileText", name: "Программа воспитательной работы", size: "0.9 МБ", type: "DOCX", color: "text-edu-green" },
-    { icon: "FileText", name: "Критерии оценивания работ", size: "0.4 МБ", type: "PDF", color: "text-edu-pink" },
-    { icon: "Folder", name: "Банк заданий для контрольных работ", size: "5.1 МБ", type: "ZIP", color: "text-edu-orange" },
-  ];
-
-  return (
-    <div className="animate-fade-in">
-      <PageHeader icon="FileText" title="Методическая деятельность" subtitle="Учебно-методические материалы и разработки" />
-      <div className="grid gap-3">
-        {docs.map((d, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 shadow-sm hover-lift flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-              <Icon name={d.icon} size={22} className={d.color} />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground text-sm">{d.name}</h3>
-              <p className="text-muted-foreground text-xs mt-0.5">{d.type} · {d.size}</p>
-            </div>
-            <button className="flex items-center gap-1 text-xs font-semibold text-edu-orange hover:text-orange-600 transition-colors">
-              <Icon name="Download" size={14} />
-              Скачать
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ===== EVENTS PAGE ===== */
-function EventsPage() {
-  const events = [
-    { date: "08 июн", day: "Вс", title: "Олимпиада по информатике", place: "Онлайн", time: "10:00–14:00", color: "border-edu-orange bg-orange-50" },
-    { date: "12 июн", day: "Чт", title: "Научная конференция студентов", place: "Актовый зал", time: "13:00–17:00", color: "border-edu-blue bg-blue-50" },
-    { date: "18 июн", day: "Ср", title: "День открытых уроков", place: "Все корпуса", time: "09:00–15:00", color: "border-edu-purple bg-purple-50" },
-    { date: "22 июн", day: "Вс", title: "Спортивный фестиваль «Здоровье»", place: "Стадион", time: "11:00–16:00", color: "border-edu-green bg-green-50" },
-    { date: "30 июн", day: "Пн", title: "Торжественное вручение дипломов", place: "Конференц-зал", time: "15:00–18:00", color: "border-edu-pink bg-pink-50" },
-  ];
-
-  return (
-    <div className="animate-fade-in">
-      <PageHeader icon="Calendar" title="Мероприятия" subtitle="Предстоящие события и мероприятия платформы" />
-      <div className="grid gap-4">
-        {events.map((e, i) => (
-          <div key={i} className={`rounded-2xl p-5 border-l-4 ${e.color} hover-lift flex gap-5 items-start`}>
-            <div className="text-center min-w-[52px]">
-              <div className="font-display font-black text-2xl leading-none text-foreground">{e.date.split(" ")[0]}</div>
-              <div className="text-muted-foreground text-xs uppercase font-semibold">{e.date.split(" ")[1]}</div>
-              <div className="text-xs text-muted-foreground mt-1">{e.day}</div>
-            </div>
-            <div className="flex-1">
-              <h3 className="font-display font-bold text-base text-foreground mb-1">{e.title}</h3>
-              <div className="flex gap-4 text-sm text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1"><Icon name="MapPin" size={13} />{e.place}</span>
-                <span className="flex items-center gap-1"><Icon name="Clock" size={13} />{e.time}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ===== SCHEDULE PAGE ===== */
-function SchedulePage() {
-  const days = ["Пн", "Вт", "Ср", "Чт", "Пт"];
-  const schedule: Record<string, { time: string; subject: string; teacher: string; room: string; color: string }[]> = {
-    "Пн": [
-      { time: "08:00", subject: "Математика", teacher: "Иванова Н.А.", room: "304", color: "border-edu-orange" },
-      { time: "09:50", subject: "Физика", teacher: "Сидорова Е.М.", room: "201", color: "border-edu-blue" },
-      { time: "11:40", subject: "Английский", teacher: "Смирнова И.П.", room: "105", color: "border-edu-purple" },
-    ],
-    "Вт": [
-      { time: "08:00", subject: "Информатика", teacher: "Петров С.В.", room: "Компьютерный 1", color: "border-edu-green" },
-      { time: "09:50", subject: "История", teacher: "Козлов А.Д.", room: "402", color: "border-edu-orange" },
-      { time: "11:40", subject: "Физкультура", teacher: "Орлов К.Н.", room: "Спортзал", color: "border-edu-pink" },
-    ],
-    "Ср": [
-      { time: "08:00", subject: "Математика", teacher: "Иванова Н.А.", room: "304", color: "border-edu-orange" },
-      { time: "09:50", subject: "Английский", teacher: "Смирнова И.П.", room: "105", color: "border-edu-purple" },
-      { time: "11:40", subject: "Химия", teacher: "Волкова Т.Р.", room: "Лаборатория", color: "border-edu-blue" },
-      { time: "13:30", subject: "История", teacher: "Козлов А.Д.", room: "402", color: "border-edu-orange" },
-    ],
-    "Чт": [
-      { time: "08:00", subject: "Физика", teacher: "Сидорова Е.М.", room: "201", color: "border-edu-blue" },
-      { time: "09:50", subject: "Информатика", teacher: "Петров С.В.", room: "Компьютерный 1", color: "border-edu-green" },
-      { time: "11:40", subject: "Математика", teacher: "Иванова Н.А.", room: "304", color: "border-edu-orange" },
-    ],
-    "Пт": [
-      { time: "08:00", subject: "Английский", teacher: "Смирнова И.П.", room: "105", color: "border-edu-purple" },
-      { time: "09:50", subject: "Физкультура", teacher: "Орлов К.Н.", room: "Спортзал", color: "border-edu-pink" },
-      { time: "11:40", subject: "Химия", teacher: "Волкова Т.Р.", room: "Лаборатория", color: "border-edu-blue" },
-    ],
-  };
-
-  const [selectedDay, setSelectedDay] = useState("Пн");
-
-  return (
-    <div className="animate-fade-in">
-      <PageHeader icon="Clock" title="Расписание занятий" subtitle="Учебный календарь и расписание уроков" />
-
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          {/* Day Tabs */}
-          <div className="flex gap-2 mb-5 flex-wrap">
-            {days.map((day) => (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  selectedDay === day
-                    ? "bg-edu-orange text-white shadow-lg shadow-orange-200"
-                    : "bg-white text-foreground hover:bg-muted"
-                }`}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-
-          {/* Lessons */}
-          <div className="grid gap-3">
-            {(schedule[selectedDay] || []).map((lesson, i) => (
-              <div key={i} className={`schedule-card border-l-4 ${lesson.color} bg-white rounded-r-2xl p-5 shadow-sm`}>
-                <div className="flex items-start gap-4">
-                  <div className="text-center min-w-[56px]">
-                    <div className="font-display font-bold text-sm text-foreground">{lesson.time}</div>
-                    <div className="text-muted-foreground text-xs mt-0.5">{i + 1} урок</div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-display font-bold text-base text-foreground">{lesson.subject}</h3>
-                    <div className="flex gap-4 text-sm text-muted-foreground mt-1 flex-wrap">
-                      <span className="flex items-center gap-1"><Icon name="User" size={12} />{lesson.teacher}</span>
-                      <span className="flex items-center gap-1"><Icon name="MapPin" size={12} />Каб. {lesson.room}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="mb-7 flex items-start gap-4">
+        <div className="w-12 h-12 rounded-2xl gradient-card-orange flex items-center justify-center flex-shrink-0">
+          <Icon name={icon} size={24} className="text-white" />
         </div>
-
-        {/* Calendar widget */}
         <div>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden hover-lift">
-            <img src={SCHEDULE_IMAGE} alt="Календарь" className="w-full h-44 object-cover" />
-            <div className="p-5">
-              <h4 className="font-display font-bold text-base mb-3">Ближайшие события</h4>
-              <div className="flex flex-col gap-3">
-                {[
-                  { title: "Контрольная по математике", date: "08 июня", color: "bg-edu-orange" },
-                  { title: "Научная конференция", date: "12 июня", color: "bg-edu-blue" },
-                  { title: "Олимпиада онлайн", date: "18 июня", color: "bg-edu-purple" },
-                ].map((ev, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${ev.color} flex-shrink-0`} />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-foreground leading-tight">{ev.title}</p>
-                      <p className="text-xs text-muted-foreground">{ev.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <h2 className="font-display font-bold text-2xl text-foreground">{title}</h2>
+          <p className="text-muted-foreground text-sm mt-0.5">Раздел в разработке</p>
         </div>
+      </div>
+      <div className="bg-white rounded-3xl p-16 text-center shadow-sm border-2 border-dashed border-border">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+          <Icon name={icon} size={28} className="text-muted-foreground" />
+        </div>
+        <h3 className="font-display font-bold text-lg text-foreground mb-2">Раздел пока пуст</h3>
+        <p className="text-muted-foreground text-sm max-w-xs mx-auto">Этот раздел будет заполнен позже. Материалы появятся здесь после добавления.</p>
       </div>
     </div>
   );
 }
 
 /* ===== CABINET PAGE ===== */
-function CabinetPage() {
+function CabinetPage({ teacher, onLogin, onLogout }: { teacher: Teacher | null; onLogin: () => void; onLogout: () => void }) {
+  if (!teacher) {
+    return (
+      <div className="animate-fade-in max-w-md mx-auto text-center py-16">
+        <div className="w-20 h-20 rounded-3xl gradient-card-orange flex items-center justify-center mx-auto mb-5">
+          <Icon name="Lock" size={36} className="text-white" />
+        </div>
+        <h2 className="font-display font-black text-2xl text-foreground mb-3">Личный кабинет</h2>
+        <p className="text-muted-foreground mb-6">Войдите в систему, чтобы получить доступ к личному кабинету</p>
+        <button
+          onClick={onLogin}
+          className="px-8 py-3.5 bg-edu-orange text-white rounded-xl font-bold hover:bg-orange-500 transition-all hover-lift"
+        >
+          Войти в систему
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in max-w-2xl mx-auto">
-      <PageHeader icon="User" title="Личный кабинет" subtitle="Управление профилем и данными" />
+      <div className="mb-7 flex items-start gap-4">
+        <div className="w-12 h-12 rounded-2xl gradient-card-orange flex items-center justify-center flex-shrink-0">
+          <Icon name="User" size={24} className="text-white" />
+        </div>
+        <div>
+          <h2 className="font-display font-bold text-2xl text-foreground">Личный кабинет</h2>
+          <p className="text-muted-foreground text-sm mt-0.5">Данные вашего профиля</p>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl p-8 shadow-sm mb-5">
         <div className="flex items-center gap-5 mb-6">
           <div className="w-20 h-20 rounded-2xl gradient-card-orange flex items-center justify-center text-white text-3xl font-display font-bold">
-            АС
+            {teacher.name.charAt(0)}
           </div>
           <div>
-            <h3 className="font-display font-bold text-xl">Алексей Смирнов</h3>
-            <p className="text-muted-foreground">Студент · 3-А группа</p>
+            <h3 className="font-display font-bold text-xl">{teacher.name}</h3>
+            <p className="text-muted-foreground">{teacher.subject}</p>
             <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-bold">Активен</span>
           </div>
         </div>
 
         <div className="grid gap-4">
           {[
-            { label: "Email", value: "a.smirnov@eduplatform.ru", icon: "Mail" },
-            { label: "Телефон", value: "+7 (999) 123-45-67", icon: "Phone" },
-            { label: "Группа", value: "3-А · Направление «ИТ»", icon: "Users" },
-            { label: "Куратор", value: "Иванова Наталья Александровна", icon: "GraduationCap" },
+            { label: "Логин", value: teacher.login, icon: "User" },
+            { label: "Предмет / Роль", value: teacher.subject, icon: "BookOpen" },
           ].map((f, i) => (
             <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/50">
               <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center">
@@ -542,38 +437,13 @@ function CabinetPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-5">
-        {[
-          { label: "Выполнено заданий", value: "47", icon: "CheckCircle", color: "text-edu-green" },
-          { label: "Средний балл", value: "4.7", icon: "Star", color: "text-edu-orange" },
-          { label: "Дней посещений", value: "124", icon: "Calendar", color: "text-edu-blue" },
-        ].map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 text-center shadow-sm">
-            <Icon name={s.icon} size={22} className={`${s.color} mx-auto mb-2`} />
-            <div className="font-display font-bold text-2xl text-foreground">{s.value}</div>
-            <div className="text-muted-foreground text-xs mt-1">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <button className="w-full py-3.5 bg-edu-orange text-white rounded-xl font-bold hover:bg-orange-500 transition-all hover-lift">
-        Редактировать профиль
+      <button
+        onClick={onLogout}
+        className="w-full py-3.5 border-2 border-border text-foreground rounded-xl font-bold hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+      >
+        <Icon name="LogOut" size={16} />
+        Выйти из системы
       </button>
-    </div>
-  );
-}
-
-/* ===== SHARED ===== */
-function PageHeader({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
-  return (
-    <div className="mb-7 flex items-start gap-4">
-      <div className="w-12 h-12 rounded-2xl gradient-card-orange flex items-center justify-center flex-shrink-0">
-        <Icon name={icon} size={24} className="text-white" />
-      </div>
-      <div>
-        <h2 className="font-display font-bold text-2xl text-foreground">{title}</h2>
-        <p className="text-muted-foreground text-sm mt-0.5">{subtitle}</p>
-      </div>
     </div>
   );
 }
